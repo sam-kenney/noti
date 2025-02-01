@@ -32,7 +32,11 @@ async fn dispatch_desktop(message: &str, summary: &str, persistent: bool) -> Res
         notification.timeout(0);
     }
 
+    #[cfg(unix)]
     notification.show_async().await?;
+    #[cfg(not(unix))]
+    notification.show()?;
+
     Ok(())
 }
 
