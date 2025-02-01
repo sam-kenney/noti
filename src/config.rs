@@ -30,22 +30,15 @@ impl Default for Stream {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Webhook {
-    pub url: String,
-    pub format: WebhookFormat,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Notification {
-    pub summary: String,
+#[serde(rename_all = "lowercase", tag = "type")]
+pub enum Destination {
+    Webhook { url: String, format: WebhookFormat },
+    Desktop { summary: String, persistent: bool },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub webhook: Option<Webhook>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub notification: Option<Notification>,
+    pub destination: Vec<Destination>,
     #[serde(default)]
     pub stream: Stream,
 }
@@ -53,21 +46,20 @@ pub struct Config {
 impl Config {
     pub fn default_webhook() -> Self {
         Self {
-            webhook: Some(Webhook {
+            destination: vec![Destination::Webhook {
                 url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
                 format: WebhookFormat::Discord,
-            }),
-            notification: None,
+            }],
             stream: Stream::default(),
         }
     }
 
-    pub fn default_notification() -> Self {
+    pub fn default_desktop() -> Self {
         Self {
-            webhook: None,
-            notification: Some(Notification {
+            destination: vec![Destination::Desktop {
                 summary: "Noti".into(),
-            }),
+                persistent: false,
+            }],
             stream: Stream::default(),
         }
     }

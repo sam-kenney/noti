@@ -23,10 +23,23 @@ pub enum Command {
         #[command(subcommand)]
         command: InitCommand,
     },
+    /// Commands about supported notification destinations.
+    Destination {
+        #[command(subcommand)]
+        command: DestinationCommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum InitCommand {
-    Notification,
+    /// Create a new `noti.yaml` file for desktop notifications.
+    Desktop,
+    /// Create a new `noti.yaml` file for webhook notifications.
     Webhook,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum DestinationCommand {
+    /// List all available destinations.
+    List,
 }

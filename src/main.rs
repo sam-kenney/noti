@@ -13,6 +13,7 @@ async fn main() {
     let result = match args.command {
         Some(cmd) => match cmd {
             Command::Init { command } => commands::init(&args.config, &command).await,
+            Command::Destination { command } => commands::destination(&command).await,
         },
         None => commands::execute(args).await,
     };

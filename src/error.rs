@@ -12,7 +12,6 @@ pub enum Error {
     Io(std::io::Error),
     NoMessage,
     StreamAndMessage,
-    NoDispatch,
     NotifyRust(notify_rust::error::Error),
 }
 
@@ -31,7 +30,6 @@ impl std::fmt::Display for Error {
                 "A message must be provided when not streaming notifications".into()
             }
             Error::StreamAndMessage => "A message cannot be provided when using streaming".into(),
-            Error::NoDispatch => {"No dispatch method found in config. Please see dispatch methods with `noti dispatch`".into()}
             Error::NotifyRust(e) => e.to_string(),
         };
 
