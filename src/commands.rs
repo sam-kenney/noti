@@ -1,14 +1,15 @@
-use crate::cli::{Cli, DestinationCommand, InitCommand};
-use crate::config::{Config, Destination, Redirect};
-use crate::error::{Error, Result};
-use crate::models::WebhookFormat;
+use crate::{
+    cli::{Cli, DestinationCommand, InitDestination},
+    config::{Config, Destination, Redirect, WebhookFormat},
+    error::{Error, Result},
+};
 use regex::Regex;
 use std::{
     io::{self, BufRead},
     path::PathBuf,
 };
 
-/// Send a message over webhook.
+/// Send a message over webhook.;
 async fn dispatch_webhook(message: &str, url: &String, format: WebhookFormat) -> Result<()> {
     let client = reqwest::Client::new();
     let resp = client
@@ -34,6 +35,7 @@ async fn dispatch_desktop(message: &str, summary: &str, persistent: bool) -> Res
 
     #[cfg(unix)]
     notification.show_async().await?;
+
     #[cfg(not(unix))]
     notification.show()?;
 
@@ -113,14 +115,14 @@ pub async fn execute(args: Cli) -> Result<()> {
 }
 
 /// Initialise a new config file at `path`.
-pub async fn init(path: &PathBuf, command: &InitCommand) -> Result<()> {
+pub async fn init(path: &PathBuf, destination: &InitDestination) -> Result<()> {
     if let Ok(true) = tokio::fs::try_exists(&path).await {
         return Err(Error::ConfigConflict(path.clone()));
     }
 
-    let config = match command {
-        InitCommand::Desktop => Config::default_desktop(),
-        InitCommand::Webhook => Config::default_webhook(),
+    let config = match destination {
+        InitDestination::Desktop => Config::default_desktop(),
+        InitDestination::Webhook => Config::default_webhook(),
     };
 
     let data = serde_yaml::to_string(&config)?;

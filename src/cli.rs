@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -19,10 +19,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Initialise a new `noti.yaml` configuration file.
-    Init {
-        #[command(subcommand)]
-        command: InitCommand,
-    },
+    Init { destination: InitDestination },
     /// Commands about supported notification destinations.
     Destination {
         #[command(subcommand)]
@@ -30,8 +27,8 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Subcommand)]
-pub enum InitCommand {
+#[derive(Debug, Clone, ValueEnum)]
+pub enum InitDestination {
     /// Create a new `noti.yaml` file for desktop notifications.
     Desktop,
     /// Create a new `noti.yaml` file for webhook notifications.
