@@ -33,12 +33,7 @@ async fn dispatch_desktop(message: &str, summary: &str, persistent: bool) -> Res
         notification.timeout(0);
     }
 
-    #[cfg(unix)]
-    notification.show_async().await?;
-
-    #[cfg(not(unix))]
     notification.show()?;
-
     Ok(())
 }
 
@@ -83,7 +78,7 @@ async fn dispatch(message: &str, destination: &Destination) -> Result<()> {
         Destination::Desktop {
             summary,
             persistent,
-        } => dispatch_desktop(message, summary, *persistent).await,
+        } => dispatch_desktop(message, summary, *persistent),
     }
 }
 
