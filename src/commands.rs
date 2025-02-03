@@ -22,7 +22,7 @@ async fn dispatch_webhook(message: &str, url: &String, format: WebhookFormat) ->
 }
 
 /// Send a desktop notification.
-async fn dispatch_desktop(message: &str, summary: &str, persistent: bool) -> Result<()> {
+fn dispatch_desktop(message: &str, summary: &str, persistent: bool) -> Result<()> {
     let mut notification = notify_rust::Notification::new()
         .summary(summary)
         .body(message)
