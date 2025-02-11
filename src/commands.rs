@@ -124,6 +124,7 @@ pub async fn init(path: &PathBuf, destination: &InitDestination) -> Result<()> {
     Ok(tokio::fs::write(&path, &data).await?)
 }
 
+/// Handle destination commands.
 pub async fn destination(command: &DestinationCommand) -> Result<()> {
     match command {
         DestinationCommand::List => list_destinations().await,

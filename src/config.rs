@@ -17,8 +17,8 @@ pub enum Redirect {
 pub struct Stream {
     /// Whether to use streaming or not.
     pub enabled: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional regular expression to filter lines from stdin to send.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub matching: Option<String>,
     /// Where to write input received from stdin back out to.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -38,8 +38,11 @@ impl Default for Stream {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookFormat {
+    /// Send a webhook message to an endpoint that supports plain text requests.
     PlainText,
+    /// Send a webhook message to a Discord channel.
     Discord,
+    /// Send a webhook message to a Google Chat.
     GoogleChat,
 }
 
