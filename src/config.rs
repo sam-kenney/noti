@@ -18,7 +18,7 @@ pub struct Stream {
     /// Whether to use streaming or not.
     pub enabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    /// Optional regex expression to only send matching lines from stdin.
+    /// Optional regular expression to filter lines from stdin to send.
     pub matching: Option<String>,
     /// Where to write input received from stdin back out to.
     #[serde(skip_serializing_if = "Option::is_none")]

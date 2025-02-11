@@ -9,7 +9,7 @@ use std::{
     path::PathBuf,
 };
 
-/// Send a message over webhook.;
+/// Send a message over webhook.
 async fn dispatch_webhook(message: &str, url: &String, format: WebhookFormat) -> Result<()> {
     let client = reqwest::Client::new();
     let resp = client
