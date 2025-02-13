@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
 
-pub trait IntoHeaderMap {
-    fn into_header_map(&self) -> Result<reqwest::header::HeaderMap>;
+pub trait AsHeaderMap {
+    fn as_header_map(&self) -> Result<reqwest::header::HeaderMap>;
 }
 
 /// HeaderMap cannot be serialized, and HeaderMap doesn't implement
 /// From<IndexMap>, so convenience method to convert.
-impl IntoHeaderMap for IndexMap<String, String> {
-    fn into_header_map(&self) -> Result<reqwest::header::HeaderMap> {
+impl AsHeaderMap for IndexMap<String, String> {
+    fn as_header_map(&self) -> Result<reqwest::header::HeaderMap> {
         use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
         self.iter()
@@ -77,13 +77,13 @@ pub enum HttpMethod {
     Put,
 }
 
-impl std::convert::Into<reqwest::Method> for HttpMethod {
-    fn into(self) -> reqwest::Method {
+impl std::convert::From<HttpMethod> for reqwest::Method {
+    fn from(value: HttpMethod) -> reqwest::Method {
         use reqwest::Method;
-        match self {
-            Self::Post => Method::POST,
-            Self::Patch => Method::PATCH,
-            Self::Put => Method::PUT,
+        match value {
+            HttpMethod::Post => Method::POST,
+            HttpMethod::Patch => Method::PATCH,
+            HttpMethod::Put => Method::PUT,
         }
     }
 }

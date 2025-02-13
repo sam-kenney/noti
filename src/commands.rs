@@ -1,6 +1,6 @@
 use crate::{
     cli::{Cli, DestinationCommand, InitDestination},
-    config::{Config, Destination, IntoHeaderMap, Redirect, WebhookFormat},
+    config::{Config, Destination, AsHeaderMap, Redirect, WebhookFormat},
     error::{Error, Result},
 };
 use regex::Regex;
@@ -16,7 +16,7 @@ async fn dispatch_webhook(message: &str, url: &str, format: &WebhookFormat) -> R
     let resp = match format {
         WebhookFormat::Custom(fmt) => client
             .request(fmt.http.method.clone().into(), url)
-            .headers(fmt.http.headers.into_header_map()?)
+            .headers(fmt.http.headers.as_header_map()?)
             .body(format.format_message(message)),
         _ => client
             .post(url)

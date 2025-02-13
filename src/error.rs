@@ -41,22 +41,17 @@ impl std::fmt::Display for Error {
             Self::ConfigConflict { path } => {
                 format!("Config file `{}` already exists", path.to_string_lossy())
             }
-            Self::InvalidConfig(e) => format!("Invalid config file: {}", e.to_string()),
-            Self::Http(e) => format!(
-                "An error occurred when sending a request: {}",
-                e.to_string()
-            ),
+            Self::InvalidConfig(e) => format!("Invalid config file: {e}"),
+            Self::Http(e) => format!("An error occurred when sending a request: {e}"),
             Self::UnknownHttpHeader(e) => format!("{e}"),
             Self::InvalidHttpHeader(e) => format!("{e}"),
-            Self::Regex(e) => format!("Failed to parse regex: {}", e.to_string()),
-            Self::Io(e) => format!("IO: {}", e.to_string()),
+            Self::Regex(e) => format!("Failed to parse regex: {e}"),
+            Self::Io(e) => format!("IO: {e}"),
             Error::NoMessage => {
                 "A message must be provided when not streaming notifications".into()
             }
             Error::StreamAndMessage => "A message cannot be provided when using streaming".into(),
-            Error::NotifyRust(e) => {
-                format!("Failed to send desktop notification: {}", e.to_string())
-            }
+            Error::NotifyRust(e) => format!("Failed to send desktop notification: {e}"),
         };
 
         write!(f, "{message}")
