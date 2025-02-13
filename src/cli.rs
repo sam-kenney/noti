@@ -19,7 +19,11 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Initialise a new `noti.yaml` configuration file.
-    Init { destination: InitDestination },
+    Init {
+        destination: InitDestination,
+        #[arg(long)]
+        custom: bool,
+    },
     /// Commands about supported notification destinations.
     Destination {
         #[command(subcommand)]

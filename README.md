@@ -59,13 +59,24 @@ destination:
 ```
 
 
-| type    | key        | value                                                  | accepted values                        |
-|---------|------------|--------------------------------------------------------|----------------------------------------|
-| webhook | url        | The url of the webhook to send messages to             | `Any URL`                              |
-| webhook | format     | Which format the webhook requires                      | `discord`, `google_chat`, `plain_text` |
-| desktop | summary    | The summary on the notification toast                  | `Any text`                             |
-| desktop | persistent | (true) Notification will stay until manually dismissed | `true` `false`                         |
+| type    | key        | value                                                  | accepted values                                   |
+|---------|------------|--------------------------------------------------------|---------------------------------------------------|
+| webhook | url        | The url of the webhook to send messages to             | `Any URL`                                         |
+| webhook | format     | Which format the webhook requires                      | `discord`, `google_chat`, `plain_text`, `custom`* |
+| desktop | summary    | The summary on the notification toast                  | `Any text`                                        |
+| desktop | persistent | (true) Notification will stay until manually dismissed | `true` `false`                                    |
 
+When using `custom` webhooks, destinations should be formatted as such:
+
+```yaml
+destination:
+- type: webhook
+  url: https://my.webhook/...
+  format:
+    content_type: application/json  # Sent in the Content-Type header
+    template: '{"content": "$(message)"}'  # $(message) is the placeholder for the message being sent
+    escape: true  # Whether to escape special characters in the incoming message
+```
 
 ### Stream
 

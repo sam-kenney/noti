@@ -51,7 +51,7 @@ async fn main() {
 
     let result: Result<()> = match args.command {
         Some(cmd) => match cmd {
-            Command::Init { destination } => commands::init(&args.config, &destination).await,
+            Command::Init { destination, custom } => commands::init(&args.config, &destination, custom).await,
             Command::Destination { command } => commands::destination(&command).await,
         },
         None => commands::execute(args).await,

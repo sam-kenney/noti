@@ -1,5 +1,6 @@
 //! Configuration data for noti.
 use crate::error::{Error, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
@@ -37,7 +38,7 @@ impl Default for Stream {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum WebhookFormat {
+pub enum StandardWebhookFormat {
     /// Send a webhook message to an endpoint that supports plain text requests.
     PlainText,
     /// Send a webhook message to a Discord channel.
@@ -46,24 +47,85 @@ pub enum WebhookFormat {
     GoogleChat,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum HttpMethod {
+    Post,
+    Patch,
+    Put,
+}
+
+impl std::convert::Into<reqwest::Method> for HttpMethod {
+    fn into(self) -> reqwest::Method {
+        use reqwest::Method;
+        match self {
+            Self::Post => Method::POST,
+            Self::Patch => Method::PATCH,
+            Self::Put => Method::PUT,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Http {
+    pub headers: IndexMap<String, String>,
+    pub method: HttpMethod,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomWebhookFormat {
+    pub http: Http,
+    template: String,
+    escape: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WebhookFormat {
+    Standard(StandardWebhookFormat),
+    Custom(CustomWebhookFormat),
+}
+
 impl WebhookFormat {
     /// Return the required content type for the platform.
-    pub fn as_content_type(&self) -> &'static str {
+    pub fn as_content_type(&self) -> String {
         match self {
-            Self::PlainText => "text/html",
-            Self::Discord => "application/json",
-            Self::GoogleChat => "application/json",
+            Self::Standard(format) => match format {
+                StandardWebhookFormat::PlainText => "text/plain",
+                StandardWebhookFormat::Discord => "application/json",
+                StandardWebhookFormat::GoogleChat => "application/json",
+            }
+            .into(),
+            Self::Custom(format) => format
+                .http
+                .headers
+                .get(&"Content-Type".to_string())
+                .unwrap_or(&"text/plain".to_string())
+                .to_owned(),
         }
     }
 
     /// Format a message as needed by the respective platform.
     pub fn format_message(&self, message: String) -> String {
         match &self {
-            Self::PlainText => message,
-            Self::Discord => serde_json::to_string(&json!({"content": message}))
-                .expect("Serde serialize for `serde_json::json`"),
-            Self::GoogleChat => serde_json::to_string(&json!({"text": message}))
-                .expect("Serde serialize for `serde_json::json`"),
+            Self::Standard(format) => match format {
+                StandardWebhookFormat::PlainText => message,
+                StandardWebhookFormat::Discord => {
+                    serde_json::to_string(&json!({"content": message}))
+                        .expect("Serde serialize for `serde_json::json`")
+                }
+                StandardWebhookFormat::GoogleChat => {
+                    serde_json::to_string(&json!({"text": message}))
+                        .expect("Serde serialize for `serde_json::json`")
+                }
+            },
+            Self::Custom(format) => {
+                let message = match format.escape {
+                    false => message,
+                    true => message.escape_default().collect(),
+                };
+                format.template.replace("$(message)", message.as_str())
+            }
         }
     }
 }
@@ -90,7 +152,27 @@ impl Config {
         Self {
             destination: vec![Destination::Webhook {
                 url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
-                format: WebhookFormat::Discord,
+                format: WebhookFormat::Standard(StandardWebhookFormat::Discord),
+            }],
+            stream: Stream::default(),
+        }
+    }
+
+    pub fn default_custom_webhook() -> Self {
+        let headers =
+            IndexMap::from([("Content-Type".to_string(), "application/json".to_string())]);
+
+        Self {
+            destination: vec![Destination::Webhook {
+                url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
+                format: WebhookFormat::Custom(CustomWebhookFormat {
+                    http: Http {
+                        headers,
+                        method: HttpMethod::Post,
+                    },
+                    escape: true,
+                    template: r#"{"content": "$(message)"}"#.into(),
+                }),
             }],
             stream: Stream::default(),
         }

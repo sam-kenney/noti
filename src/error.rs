@@ -1,17 +1,28 @@
+use derive_more::{Error, From};
 use std::path::PathBuf;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, From, Error)]
 pub enum Error {
     NoConfig,
-    ConfigConflict(PathBuf),
-    InvalidConfig(serde_yaml::Error),
-    Http(reqwest::Error),
-    Regex(regex::Error),
-    Io(std::io::Error),
     NoMessage,
     StreamAndMessage,
+    Io(std::io::Error),
+    ConfigConflict {
+        path: PathBuf,
+    },
+
+    #[from]
+    InvalidConfig(serde_yaml::Error),
+
+    #[from]
+    Http(reqwest::Error),
+
+    #[from]
+    Regex(regex::Error),
+
+    #[from]
     NotifyRust(notify_rust::error::Error),
 }
 
@@ -21,7 +32,7 @@ impl std::fmt::Display for Error {
             Self::NoConfig => {
                 "No config file found, please create one or provide the path with --config".into()
             }
-            Self::ConfigConflict(path) => format!("`{}` already exists", path.to_string_lossy()),
+            Self::ConfigConflict { path } => format!("`{}` already exists", path.to_string_lossy()),
             Self::InvalidConfig(e) => e.to_string(),
             Self::Http(e) => e.to_string(),
             Self::Regex(e) => e.to_string(),
@@ -43,29 +54,5 @@ impl std::convert::From<std::io::Error> for Error {
             std::io::ErrorKind::NotFound => Error::NoConfig,
             _ => Error::Io(error),
         }
-    }
-}
-
-impl std::convert::From<serde_yaml::Error> for Error {
-    fn from(error: serde_yaml::Error) -> Self {
-        Self::InvalidConfig(error)
-    }
-}
-
-impl std::convert::From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Self {
-        Self::Http(error)
-    }
-}
-
-impl std::convert::From<regex::Error> for Error {
-    fn from(error: regex::Error) -> Self {
-        Self::Regex(error)
-    }
-}
-
-impl std::convert::From<notify_rust::error::Error> for Error {
-    fn from(error: notify_rust::error::Error) -> Self {
-        Self::NotifyRust(error)
     }
 }
