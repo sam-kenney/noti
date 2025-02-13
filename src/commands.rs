@@ -1,6 +1,6 @@
 use crate::{
     cli::{Cli, DestinationCommand, InitDestination},
-    config::{Config, Destination, Redirect, WebhookFormat},
+    config::{Config, Destination, IntoHeaderMap, Redirect, WebhookFormat},
     error::{Error, Result},
 };
 use regex::Regex;
@@ -10,12 +10,19 @@ use std::{
 };
 
 /// Send a message over webhook.
-async fn dispatch_webhook(message: &str, url: &String, format: WebhookFormat) -> Result<()> {
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(url)
-        .header(reqwest::header::CONTENT_TYPE, format.as_content_type())
-        .body(format.format_message(message.into()));
+async fn dispatch_webhook(message: &str, url: &str, format: &WebhookFormat) -> Result<()> {
+    let client = reqwest::Client::builder().build()?;
+
+    let resp = match format {
+        WebhookFormat::Custom(fmt) => client
+            .request(fmt.http.method.clone().into(), url)
+            .headers(fmt.http.headers.into_header_map()?)
+            .body(format.format_message(message)),
+        _ => client
+            .post(url)
+            .header(reqwest::header::CONTENT_TYPE, format.as_content_type())
+            .body(format.format_message(message)),
+    };
 
     resp.send().await?.error_for_status()?;
     Ok(())
@@ -72,9 +79,7 @@ async fn stream_and_dispatch(config: &Config) -> Result<()> {
 /// Send a message to the configured destination.
 async fn dispatch(message: &str, destination: &Destination) -> Result<()> {
     match destination {
-        Destination::Webhook { url, format } => {
-            dispatch_webhook(message, url, format.clone()).await
-        }
+        Destination::Webhook { url, format } => dispatch_webhook(message, url, format).await,
         Destination::Desktop {
             summary,
             persistent,
@@ -110,13 +115,16 @@ pub async fn execute(args: Cli) -> Result<()> {
 }
 
 /// Initialise a new config file at `path`.
-pub async fn init(path: &PathBuf, destination: &InitDestination) -> Result<()> {
+pub async fn init(path: &PathBuf, destination: &InitDestination, custom: bool) -> Result<()> {
     if let Ok(true) = tokio::fs::try_exists(&path).await {
-        return Err(Error::ConfigConflict(path.clone()));
+        return Err(Error::ConfigConflict {
+            path: path.to_owned(),
+        });
     }
 
     let config = match destination {
         InitDestination::Desktop => Config::default_desktop(),
+        InitDestination::Webhook if custom => Config::default_custom_webhook(),
         InitDestination::Webhook => Config::default_webhook(),
     };
 
