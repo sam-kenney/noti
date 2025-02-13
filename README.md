@@ -71,9 +71,12 @@ When using `custom` webhooks, destinations should be formatted as such:
 ```yaml
 destination:
 - type: webhook
-  url: https://my.webhook/...
+  url: https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>
   format:
-    content_type: application/json  # Sent in the Content-Type header
+    http:
+      headers:
+        Content-Type: application/json
+      method: POST
     template: '{"content": "$(message)"}'  # $(message) is the placeholder for the message being sent
     escape: true  # Whether to escape special characters in the incoming message
 ```
