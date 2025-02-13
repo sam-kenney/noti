@@ -5,6 +5,26 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
 
+pub trait IntoHeaderMap {
+    fn into_header_map(&self) -> Result<reqwest::header::HeaderMap>;
+}
+
+/// HeaderMap cannot be serialized, and HeaderMap doesn't implement
+/// From<IndexMap>, so convenience method to convert.
+impl IntoHeaderMap for IndexMap<String, String> {
+    fn into_header_map(&self) -> Result<reqwest::header::HeaderMap> {
+        use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
+        self.iter()
+            .map(|(k, v)| {
+                let name = HeaderName::from_bytes(k.as_bytes())?;
+                let value = HeaderValue::from_bytes(v.as_bytes())?;
+                Ok((name, value))
+            })
+            .collect::<Result<HeaderMap>>()
+    }
+}
+
 /// Where to write received stdin back to.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -36,6 +56,7 @@ impl Default for Stream {
     }
 }
 
+/// Builtin supported Webhook Formats for common webhook providers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StandardWebhookFormat {
@@ -47,7 +68,8 @@ pub enum StandardWebhookFormat {
     GoogleChat,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Subset of http methods useable with webhooks.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HttpMethod {
     Post,
@@ -72,6 +94,7 @@ pub struct Http {
     pub method: HttpMethod,
 }
 
+/// Enables configuring sending notifications to other webhook providers.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CustomWebhookFormat {
     pub http: Http,
@@ -106,10 +129,10 @@ impl WebhookFormat {
     }
 
     /// Format a message as needed by the respective platform.
-    pub fn format_message(&self, message: String) -> String {
+    pub fn format_message(&self, message: &str) -> String {
         match &self {
             Self::Standard(format) => match format {
-                StandardWebhookFormat::PlainText => message,
+                StandardWebhookFormat::PlainText => message.into(),
                 StandardWebhookFormat::Discord => {
                     serde_json::to_string(&json!({"content": message}))
                         .expect("Serde serialize for `serde_json::json`")
@@ -121,8 +144,8 @@ impl WebhookFormat {
             },
             Self::Custom(format) => {
                 let message = match format.escape {
-                    false => message,
-                    true => message.escape_default().collect(),
+                    false => message.into(),
+                    true => message.escape_default().collect::<String>(),
                 };
                 format.template.replace("$(message)", message.as_str())
             }
@@ -159,15 +182,15 @@ impl Config {
     }
 
     pub fn default_custom_webhook() -> Self {
-        let headers =
-            IndexMap::from([("Content-Type".to_string(), "application/json".to_string())]);
-
         Self {
             destination: vec![Destination::Webhook {
                 url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
                 format: WebhookFormat::Custom(CustomWebhookFormat {
                     http: Http {
-                        headers,
+                        headers: IndexMap::from([(
+                            "Content-Type".to_string(),
+                            "application/json".to_string(),
+                        )]),
                         method: HttpMethod::Post,
                     },
                     escape: true,

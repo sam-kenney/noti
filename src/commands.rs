@@ -1,6 +1,6 @@
 use crate::{
     cli::{Cli, DestinationCommand, InitDestination},
-    config::{Config, Destination, Redirect, WebhookFormat},
+    config::{Config, Destination, IntoHeaderMap, Redirect, WebhookFormat},
     error::{Error, Result},
 };
 use regex::Regex;
@@ -11,11 +11,18 @@ use std::{
 
 /// Send a message over webhook.
 async fn dispatch_webhook(message: &str, url: &str, format: &WebhookFormat) -> Result<()> {
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(url)
-        .header(reqwest::header::CONTENT_TYPE, format.as_content_type())
-        .body(format.format_message(message.into()));
+    let client = reqwest::Client::builder().build()?;
+
+    let resp = match format {
+        WebhookFormat::Custom(fmt) => client
+            .request(fmt.http.method.clone().into(), url)
+            .headers(fmt.http.headers.into_header_map()?)
+            .body(format.format_message(message)),
+        _ => client
+            .post(url)
+            .header(reqwest::header::CONTENT_TYPE, format.as_content_type())
+            .body(format.format_message(message)),
+    };
 
     resp.send().await?.error_for_status()?;
     Ok(())

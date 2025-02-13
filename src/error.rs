@@ -20,6 +20,12 @@ pub enum Error {
     Http(reqwest::Error),
 
     #[from]
+    UnknownHttpHeader(reqwest::header::InvalidHeaderName),
+
+    #[from]
+    InvalidHttpHeader(reqwest::header::InvalidHeaderValue),
+
+    #[from]
     Regex(regex::Error),
 
     #[from]
@@ -32,16 +38,25 @@ impl std::fmt::Display for Error {
             Self::NoConfig => {
                 "No config file found, please create one or provide the path with --config".into()
             }
-            Self::ConfigConflict { path } => format!("`{}` already exists", path.to_string_lossy()),
-            Self::InvalidConfig(e) => e.to_string(),
-            Self::Http(e) => e.to_string(),
-            Self::Regex(e) => e.to_string(),
-            Self::Io(e) => e.to_string(),
+            Self::ConfigConflict { path } => {
+                format!("Config file `{}` already exists", path.to_string_lossy())
+            }
+            Self::InvalidConfig(e) => format!("Invalid config file: {}", e.to_string()),
+            Self::Http(e) => format!(
+                "An error occurred when sending a request: {}",
+                e.to_string()
+            ),
+            Self::UnknownHttpHeader(e) => format!("{e}"),
+            Self::InvalidHttpHeader(e) => format!("{e}"),
+            Self::Regex(e) => format!("Failed to parse regex: {}", e.to_string()),
+            Self::Io(e) => format!("IO: {}", e.to_string()),
             Error::NoMessage => {
                 "A message must be provided when not streaming notifications".into()
             }
             Error::StreamAndMessage => "A message cannot be provided when using streaming".into(),
-            Error::NotifyRust(e) => e.to_string(),
+            Error::NotifyRust(e) => {
+                format!("Failed to send desktop notification: {}", e.to_string())
+            }
         };
 
         write!(f, "{message}")
