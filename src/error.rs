@@ -16,7 +16,6 @@ pub enum Error {
     #[from]
     InvalidConfig(serde_yaml::Error),
 
-    #[from]
     Http(reqwest::Error),
 
     #[from]
@@ -64,5 +63,12 @@ impl std::convert::From<std::io::Error> for Error {
             std::io::ErrorKind::NotFound => Error::NoConfig,
             _ => Error::Io(error),
         }
+    }
+}
+
+impl std::convert::From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        let error = error.without_url();
+        Self::Http(error)
     }
 }

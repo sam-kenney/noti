@@ -98,8 +98,8 @@ pub struct Http {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CustomWebhookFormat {
     pub http: Http,
-    template: String,
-    escape: bool,
+    pub template: String,
+    pub escape: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,6 +161,39 @@ pub enum Destination {
     Desktop { summary: String, persistent: bool },
 }
 
+impl Destination {
+    pub fn default_webhook() -> Self {
+        Destination::Webhook {
+            url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
+            format: WebhookFormat::Standard(StandardWebhookFormat::Discord),
+        }
+    }
+
+    pub fn default_custom_webhook() -> Self {
+        Destination::Webhook {
+            url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
+            format: WebhookFormat::Custom(CustomWebhookFormat {
+                http: Http {
+                    headers: IndexMap::from([(
+                        "Content-Type".to_string(),
+                        "application/json".to_string(),
+                    )]),
+                    method: HttpMethod::Post,
+                },
+                escape: true,
+                template: r#"{"content": "$(message)"}"#.into(),
+            }),
+        }
+    }
+
+    pub fn default_desktop() -> Self {
+        Destination::Desktop {
+            summary: "Noti".into(),
+            persistent: false,
+        }
+    }
+}
+
 /// A noti configuration file.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
@@ -173,30 +206,14 @@ impl Config {
     /// Generate an example webhook configuration for noti.
     pub fn default_webhook() -> Self {
         Self {
-            destination: vec![Destination::Webhook {
-                url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
-                format: WebhookFormat::Standard(StandardWebhookFormat::Discord),
-            }],
+            destination: vec![Destination::default_webhook()],
             stream: Stream::default(),
         }
     }
 
     pub fn default_custom_webhook() -> Self {
         Self {
-            destination: vec![Destination::Webhook {
-                url: "https://discord.com/api/webhooks/<CHANNEL_ID>/<WEBHOOK_ID>".into(),
-                format: WebhookFormat::Custom(CustomWebhookFormat {
-                    http: Http {
-                        headers: IndexMap::from([(
-                            "Content-Type".to_string(),
-                            "application/json".to_string(),
-                        )]),
-                        method: HttpMethod::Post,
-                    },
-                    escape: true,
-                    template: r#"{"content": "$(message)"}"#.into(),
-                }),
-            }],
+            destination: vec![Destination::default_custom_webhook()],
             stream: Stream::default(),
         }
     }
@@ -204,10 +221,7 @@ impl Config {
     /// Generate an example desktop configuration for noti.
     pub fn default_desktop() -> Self {
         Self {
-            destination: vec![Destination::Desktop {
-                summary: "Noti".into(),
-                persistent: false,
-            }],
+            destination: vec![Destination::default_desktop()],
             stream: Stream::default(),
         }
     }

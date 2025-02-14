@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
+/// Send desktop and webhook notifications from the command line.
 #[derive(Debug, Parser)]
+#[clap(version, name = "noti")]
 pub struct Cli {
     /// The message to send when using as `cmd && noti 'Message'`.
     #[arg()]
@@ -21,7 +23,7 @@ pub enum Command {
     /// Initialise a new `noti.yaml` configuration file.
     Init {
         /// Where to send notifications to.
-        destination: InitDestination,
+        destination: DestinationType,
         /// Initialise a custom webhook destination. Has no effect on desktop destination.
         #[arg(long)]
         custom: bool,
@@ -34,7 +36,7 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, ValueEnum)]
-pub enum InitDestination {
+pub enum DestinationType {
     /// Create a new `noti.yaml` file for desktop notifications.
     Desktop,
     /// Create a new `noti.yaml` file for webhook notifications.
@@ -45,4 +47,13 @@ pub enum InitDestination {
 pub enum DestinationCommand {
     /// List all available destinations.
     List,
+    /// Add a default configuration for a destination to existing config.
+    Add {
+        /// Where to send notifications to.
+        #[arg()]
+        destination: DestinationType,
+        /// Initialise a custom webhook destination. Has no effect on desktop destination.
+        #[arg(long, default_value = "true")]
+        custom: bool,
+    },
 }

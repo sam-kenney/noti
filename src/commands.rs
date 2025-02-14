@@ -1,6 +1,6 @@
 use crate::{
-    cli::{Cli, DestinationCommand, InitDestination},
-    config::{Config, Destination, AsHeaderMap, Redirect, WebhookFormat},
+    cli::{Cli, DestinationCommand, DestinationType},
+    config::{AsHeaderMap, Config, Destination, Redirect, WebhookFormat},
     error::{Error, Result},
 };
 use regex::Regex;
@@ -8,6 +8,7 @@ use std::{
     io::{self, BufRead},
     path::PathBuf,
 };
+use tokio::fs;
 
 /// Send a message over webhook.
 async fn dispatch_webhook(message: &str, url: &str, format: &WebhookFormat) -> Result<()> {
@@ -115,7 +116,7 @@ pub async fn execute(args: Cli) -> Result<()> {
 }
 
 /// Initialise a new config file at `path`.
-pub async fn init(path: &PathBuf, destination: &InitDestination, custom: bool) -> Result<()> {
+pub async fn init(path: &PathBuf, destination: &DestinationType, custom: bool) -> Result<()> {
     if let Ok(true) = tokio::fs::try_exists(&path).await {
         return Err(Error::ConfigConflict {
             path: path.to_owned(),
@@ -123,9 +124,9 @@ pub async fn init(path: &PathBuf, destination: &InitDestination, custom: bool) -
     }
 
     let config = match destination {
-        InitDestination::Desktop => Config::default_desktop(),
-        InitDestination::Webhook if custom => Config::default_custom_webhook(),
-        InitDestination::Webhook => Config::default_webhook(),
+        DestinationType::Desktop => Config::default_desktop(),
+        DestinationType::Webhook if custom => Config::default_custom_webhook(),
+        DestinationType::Webhook => Config::default_webhook(),
     };
 
     let data = serde_yaml::to_string(&config)?;
@@ -133,9 +134,13 @@ pub async fn init(path: &PathBuf, destination: &InitDestination, custom: bool) -
 }
 
 /// Handle destination commands.
-pub async fn destination(command: &DestinationCommand) -> Result<()> {
+pub async fn destination(config: &PathBuf, command: &DestinationCommand) -> Result<()> {
     match command {
         DestinationCommand::List => list_destinations().await,
+        DestinationCommand::Add {
+            destination,
+            custom,
+        } => add_default_destination(config, &destination, *custom).await,
     }
 }
 
@@ -144,4 +149,111 @@ async fn list_destinations() -> Result<()> {
     println!("desktop");
     println!("webhook");
     Ok(())
+}
+
+/// Add a default destination to existing config.
+async fn add_default_destination(
+    config_path: &PathBuf,
+    destination: &DestinationType,
+    custom: bool,
+) -> Result<()> {
+    let file = fs::read_to_string(&config_path).await?;
+    let config: Config = serde_yaml::from_str(file.as_str())?;
+
+    let dest = match destination {
+        DestinationType::Webhook if custom => Destination::default_custom_webhook(),
+        DestinationType::Webhook => Destination::default_webhook(),
+        DestinationType::Desktop => Destination::default_desktop(),
+    };
+
+    let mut destination = vec![dest];
+    destination.extend(config.destination);
+
+    let new_config = Config {
+        destination,
+        ..config
+    };
+
+    let content = serde_yaml::to_string(&new_config)?;
+    Ok(fs::write(&config_path, content).await?)
+}
+
+#[cfg(test)]
+mod test {
+    use super::{dispatch_webhook, Result, WebhookFormat};
+    use crate::config::{CustomWebhookFormat, Http, HttpMethod, StandardWebhookFormat};
+    use indexmap::IndexMap;
+
+    const MESSAGE: &str = "noti test execution.";
+
+    #[cfg(feature = "integration_tests")]
+    #[tokio::test]
+    pub async fn dispatch_webhook_discord_test() -> Result<()> {
+        let url = std::env::var("NOTI_TEST_DISCORD_WEBHOOK_URL")
+            .expect("NOTI_TEST_DISCORD_WEBHOOK_URL not set in environment");
+
+        dispatch_webhook(
+            MESSAGE,
+            url.as_str(),
+            &WebhookFormat::Standard(StandardWebhookFormat::Discord),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "integration_tests")]
+    #[tokio::test]
+    pub async fn dispatch_webhook_google_chat_test() -> Result<()> {
+        let url = std::env::var("NOTI_TEST_GOOGLE_CHAT_WEBHOOK_URL")
+            .expect("NOTI_TEST_GOOGLE_CHAT_WEBHOOK_URL not set in environment");
+
+        dispatch_webhook(
+            MESSAGE,
+            url.as_str(),
+            &WebhookFormat::Standard(StandardWebhookFormat::GoogleChat),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "integration_tests")]
+    #[tokio::test]
+    pub async fn dispatch_webhook_plaintext_test() -> Result<()> {
+        let url = std::env::var("NOTI_TEST_PLAINTEXT_WEBHOOK_URL")
+            .expect("NOTI_TEST_PLAINTEXT_WEBHOOK_URL not set in environment");
+
+        dispatch_webhook(
+            MESSAGE,
+            url.as_str(),
+            &WebhookFormat::Standard(StandardWebhookFormat::PlainText),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "integration_tests")]
+    #[tokio::test]
+    pub async fn dispatch_webhook_custom_test() -> Result<()> {
+        let url = std::env::var("NOTI_TEST_CUSTOM_WEBHOOK_URL")
+            .expect("NOTI_TEST_CUSTOM_WEBHOOK_URL not set in environment");
+
+        dispatch_webhook(
+            MESSAGE,
+            url.as_str(),
+            &WebhookFormat::Custom(CustomWebhookFormat {
+                http: Http {
+                    headers: IndexMap::from([("Content-Type".into(), "application/json".into())]),
+                    method: HttpMethod::Put,
+                },
+                template: r#"{"message":"$(message)"}"#.into(),
+                escape: true,
+            }),
+        )
+        .await?;
+
+        Ok(())
+    }
 }
