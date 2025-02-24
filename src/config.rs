@@ -70,20 +70,19 @@ pub enum StandardWebhookFormat {
 
 /// Subset of http methods useable with webhooks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
 pub enum HttpMethod {
-    Post,
-    Patch,
-    Put,
+    POST,
+    PATCH,
+    PUT,
 }
 
 impl std::convert::From<HttpMethod> for reqwest::Method {
     fn from(value: HttpMethod) -> reqwest::Method {
         use reqwest::Method;
         match value {
-            HttpMethod::Post => Method::POST,
-            HttpMethod::Patch => Method::PATCH,
-            HttpMethod::Put => Method::PUT,
+            HttpMethod::POST => Method::POST,
+            HttpMethod::PATCH => Method::PATCH,
+            HttpMethod::PUT => Method::PUT,
         }
     }
 }
@@ -178,7 +177,7 @@ impl Destination {
                         "Content-Type".to_string(),
                         "application/json".to_string(),
                     )]),
-                    method: HttpMethod::Post,
+                    method: HttpMethod::POST,
                 },
                 escape: true,
                 template: r#"{"content": "$(message)"}"#.into(),
@@ -211,6 +210,7 @@ impl Config {
         }
     }
 
+    /// Generate an example custom webhook configuration for noti
     pub fn default_custom_webhook() -> Self {
         Self {
             destination: vec![Destination::default_custom_webhook()],
@@ -230,6 +230,7 @@ impl Config {
 /// Try to load config from a PathBuf.
 impl std::convert::TryFrom<&PathBuf> for Config {
     type Error = Error;
+
     fn try_from(path: &PathBuf) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         Ok(serde_yaml::from_str(content.as_str())?)

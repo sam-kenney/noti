@@ -180,11 +180,36 @@ async fn add_default_destination(
 
 #[cfg(test)]
 mod test {
-    use super::{dispatch_webhook, Result, WebhookFormat};
-    use crate::config::{CustomWebhookFormat, Http, HttpMethod, StandardWebhookFormat};
+    use super::{
+        add_default_destination, dispatch_webhook, init, DestinationType, Error, PathBuf, Result,
+        WebhookFormat,
+    };
+    use crate::config::{Config, CustomWebhookFormat, Http, HttpMethod, StandardWebhookFormat};
     use indexmap::IndexMap;
 
     const MESSAGE: &str = "noti test execution.";
+
+    #[tokio::test]
+    pub async fn add_default_destination_test() -> Result<()> {
+        let temp_cfg = PathBuf::from("add_default_destination_test_noti.yaml");
+
+        init(&temp_cfg, &DestinationType::Desktop, false).await?;
+        add_default_destination(&temp_cfg, &DestinationType::Desktop, false).await?;
+
+        let config = Config::try_from(&temp_cfg)?;
+        assert_eq!(config.destination.len(), 2);
+
+        tokio::fs::remove_file(&temp_cfg).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn add_default_destination_fails_with_no_config_test() -> Result<()> {
+        let temp_cfg = PathBuf::from("add_default_destination_fails_with_no_config_test_noti.yaml");
+        let res = add_default_destination(&temp_cfg, &DestinationType::Desktop, false).await;
+        assert!(res.is_err_and(|e| matches!(e, Error::NoConfig)));
+        Ok(())
+    }
 
     #[cfg(feature = "integration_tests")]
     #[tokio::test]
@@ -246,7 +271,7 @@ mod test {
             &WebhookFormat::Custom(CustomWebhookFormat {
                 http: Http {
                     headers: IndexMap::from([("Content-Type".into(), "application/json".into())]),
-                    method: HttpMethod::Put,
+                    method: HttpMethod::PUT,
                 },
                 template: r#"{"message":"$(message)"}"#.into(),
                 escape: true,
