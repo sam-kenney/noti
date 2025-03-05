@@ -1,6 +1,7 @@
 //! Configuration data for noti.
 use crate::error::{Error, Result};
 use indexmap::IndexMap;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
@@ -78,11 +79,10 @@ pub enum HttpMethod {
 
 impl std::convert::From<HttpMethod> for reqwest::Method {
     fn from(value: HttpMethod) -> reqwest::Method {
-        use reqwest::Method;
         match value {
-            HttpMethod::POST => Method::POST,
-            HttpMethod::PATCH => Method::PATCH,
-            HttpMethod::PUT => Method::PUT,
+            HttpMethod::POST => Self::POST,
+            HttpMethod::PATCH => Self::PATCH,
+            HttpMethod::PUT => Self::PUT,
         }
     }
 }
@@ -233,6 +233,38 @@ impl std::convert::TryFrom<&PathBuf> for Config {
 
     fn try_from(path: &PathBuf) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        Ok(serde_yaml::from_str(content.as_str())?)
+        let parsed = populate_env_substitutions(&content)?;
+        Ok(serde_yaml::from_str(&parsed)?)
     }
+}
+
+fn populate_env_substitutions(content: &str) -> Result<String> {
+    let re = Regex::new(r"\$\(([A-Za-z0-9-_]*)\)")?;
+
+    let mut buf: String = content.into();
+
+    for var in re.captures_iter(content) {
+        let varname = &var
+            .get(0)
+            .expect("must be at least one match")
+            .as_str()
+            // Not sure why we're getting $(VARNAME) when the capture
+            // group is inside the $(), but this will do for now
+            .replace("$(", "")
+            .replace(")", "");
+
+        if varname == "message" {
+            continue;
+        }
+
+        let var = std::env::var(varname).map_err(|e| match e {
+            std::env::VarError::NotPresent => Error::VarNotSet(varname.into()),
+            std::env::VarError::NotUnicode(_) => Error::InvalidVar(varname.into()),
+        })?;
+
+        let pat = format!("$({varname})");
+        buf = buf.replace(&pat, &var);
+    }
+
+    Ok(buf)
 }

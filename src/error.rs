@@ -1,9 +1,9 @@
-use derive_more::{Error, From};
+use derive_more::From;
 use std::path::PathBuf;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, From, Error)]
+#[derive(Debug, From)]
 pub enum Error {
     NoConfig,
     NoMessage,
@@ -29,6 +29,9 @@ pub enum Error {
 
     #[from]
     NotifyRust(notify_rust::error::Error),
+
+    VarNotSet(String),
+    InvalidVar(String),
 }
 
 impl std::fmt::Display for Error {
@@ -51,6 +54,10 @@ impl std::fmt::Display for Error {
             }
             Error::StreamAndMessage => "A message cannot be provided when using streaming".into(),
             Error::NotifyRust(e) => format!("Failed to send desktop notification: {e}"),
+            Error::VarNotSet(var) => {
+                format!("The env var {var} was specified in noti.yaml but has not been set")
+            }
+            Error::InvalidVar(var) => format!("The env var {var} is not UTF-8 and cannot be parsed"),
         };
 
         write!(f, "{message}")
